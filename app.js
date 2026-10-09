@@ -36,7 +36,7 @@ function allMods(u, kind) { var d = UNITS[u][kind]; var out = []; if (d) d.stage
 
 /* ---------------- state ---------------- */
 var KEY = 'trailmix.v1', S;
-function fresh() { return { v:1, xp:0, mods:{}, cks:{}, faults:{}, fixed:0, words:{}, pages:{}, pats:{}, tests:{}, tree:{}, badges:{}, streak:{last:'',n:0,best:0}, bestCombo:0, perfect:0, route:[], mins:{}, owner:'' }; }
+function fresh() { return { v:1, xp:0, mods:{}, cks:{}, faults:{}, fixed:0, words:{}, pages:{}, pats:{}, pods:{}, tests:{}, tree:{}, badges:{}, streak:{last:'',n:0,best:0}, bestCombo:0, perfect:0, route:[], mins:{}, owner:'' }; }
 function load() { try { S = JSON.parse(localStorage.getItem(KEY)) || fresh(); } catch (e) { S = fresh(); }
   var f = fresh(); for (var k in f) if (!(k in S)) S[k] = f[k]; }
 function save(quiet) { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} if (!quiet && window.TMSync) TMSync.dirty(); }
@@ -81,6 +81,7 @@ var BADGES = [
   {id:'base', icon:'⛺', name:'Base Camp', how:'Finish TU-style Mock 1.'},
   {id:'summit', icon:'🚩', name:'Summit', how:'Finish TU-style Mock 2.'},
   {id:'mock30', icon:'🏆', name:'30 Club', how:'Score 30/40 or more in a TU-style mock.'},
+  {id:'listener', icon:'🎧', name:'Good Listener', how:'Listen to 10 lesson podcasts to the end.'},
   {id:'sorter', icon:'🌳', name:'Word Sorter', how:'Sort 30 words right first time in the Sorting Trees.'},
   {id:'u6master', icon:'🌶️', name:'Unit 6 Master', how:'2+ stars in every Unit 6 module.'},
   {id:'u7master', icon:'🐅', name:'Unit 7 Master', how:'2+ stars in every Unit 7 module.'}
@@ -99,6 +100,7 @@ function checkBadges() {
   var three = ms.filter(function (m) { return m.stars === 3; }).length; if (three >= 1) give('three'); if (three >= 3) give('hat');
   Object.keys(S.cks).forEach(function (k) { var c = S.cks[k]; if (c.stars >= 2) give('boss'); if (c.best >= 1) give('clean'); });
   if (ms.some(function (m) { return m.nohint; })) give('nohint');
+  if (count(S.pods) >= 10) give('listener');
   if (count(S.tree) >= 30) give('sorter');
   if (S.bestCombo >= 10) give('combo10'); if (S.fixed >= 10) give('fixer');
   if (S.streak.best >= 3) give('streak3'); if (S.streak.best >= 7) give('streak7');
@@ -172,6 +174,7 @@ function summary() {
   o['Word cards (of ' + (W.u6.words.length + W.u7.words.length) + ')'] = count(S.words);
   o['Story pages (of ' + storyPages() + ')'] = pr;
   o['Pattern cards (of ' + (UNITS.u6.pats.length + UNITS.u7.pats.length) + ')'] = count(S.pats);
+  o['Podcasts heard (of ' + (MEDIA.podcasts || []).length + ')'] = count(S.pods);
   o['Tree words sorted (of ' + (treeWords('u6').length + treeWords('u7').length) + ')'] = count(S.tree);
   ['u6','u7'].forEach(function (u) { [['v','vocab'],['g','grammar']].forEach(function (k) { var p = modProgress(u, k[0]); o['U' + UNITS[u].n + ' ' + k[1] + ' ★ (of ' + p.max + ')'] = p.stars; }); });
   o['Modules tried (of ' + allM.length + ')'] = tried.length;
@@ -190,7 +193,7 @@ function mergeState(a, b) { // union of two progress records (this device + save
   function mx(x, y) { return Math.max(x || 0, y || 0); }
   function uni(x, y) { var o = {}; for (k in (x || {})) o[k] = x[k]; for (k in (y || {})) if (!(k in o)) o[k] = y[k]; return o; }
   m.xp = mx(a.xp, b.xp); m.fixed = mx(a.fixed, b.fixed); m.bestCombo = mx(a.bestCombo, b.bestCombo); m.perfect = mx(a.perfect, b.perfect);
-  ['words','pats','tree','badges'].forEach(function (f) { m[f] = uni(a[f], b[f]); });
+  ['words','pats','pods','tree','badges'].forEach(function (f) { m[f] = uni(a[f], b[f]); });
   m.pages = {}; ['u6','u7'].forEach(function (u) { m.pages[u] = uni((a.pages || {})[u], (b.pages || {})[u]); });
   m.faults = uni(a.faults, b.faults);
   m.mins = {}; [a.mins, b.mins].forEach(function (x) { for (k in (x || {})) m.mins[k] = mx(m.mins[k], x[k]); });
@@ -278,14 +281,41 @@ function viewHome() {
   app.innerHTML = html;
 }
 function badgeHtml(b) { return '<div class="badge' + (S.badges[b.id] ? '' : ' off') + '"><div class="bi" aria-hidden="true">' + b.icon + '</div><b>' + esc(b.name) + '</b><div class="tiny muted">' + esc(b.how) + '</div></div>'; }
+/* ---------------- podcasts ----------------
+   media.js podcasts carry unit + stage (grammar stage intro) or pattern (vocabulary pattern card). */
+function podStage(sid) { return (MEDIA.podcasts || []).filter(function (p) { return p.stage === sid; })[0]; }
+function podPattern(unit, pid) { return (MEDIA.podcasts || []).filter(function (p) { return p.pattern === pid && p.unit == unit; })[0]; }
+function podHtml(p, label, open) {
+  if (!p) return '';
+  var heard = S.pods && S.pods[p.id];
+  return '<details class="pod' + (heard ? ' heard' : '') + '" data-pod="' + esc(p.id) + '"' + (open ? ' open' : '') + '><summary><span class="pi" aria-hidden="true">🎧</span><span class="pt"><b>' + esc(label || p.title) + '</b>' +
+    (label ? '<span class="small muted">' + esc(p.title) + '</span>' : '') + '</span><span class="small muted">' + esc(p.duration || '') + '</span>' + (heard ? '<span class="tag">✓ heard</span>' : '<span class="tag b1">+10 XP</span>') + '</summary>' +
+    (p.external ? '<a class="btn sm ghost" target="_blank" rel="noopener" href="' + esc(p.url) + '">Listen</a>' : '<audio controls preload="none" src="' + esc(p.url) + '" data-pod="' + esc(p.id) + '"></audio>') +
+    (p.transcript ? '<details class="tx"><summary class="small">Read the transcript</summary><div class="small">' + p.transcript + '</div></details>' : '') + '</details>';
+}
+function podHeard(id) {
+  if (!id || S.pods[id]) return; S.pods[id] = today(); addXP(10); toast('🎧 Podcast heard · +10 XP'); emit({ type:'podcast', what: id }); checkBadges();
+  document.querySelectorAll('details.pod[data-pod="' + id + '"]').forEach(function (d) { d.classList.add('heard'); var t = d.querySelector('summary .tag'); if (t) { t.className = 'tag'; t.textContent = '✓ heard'; } });
+}
+document.addEventListener('timeupdate', function (e) { var a = e.target; if (a.tagName === 'AUDIO' && a.dataset.pod && a.duration && a.currentTime / a.duration > 0.9) podHeard(a.dataset.pod); }, true);
+document.addEventListener('play', function (e) { if (e.target.tagName !== 'AUDIO') return; document.querySelectorAll('audio').forEach(function (o) { if (o !== e.target) o.pause(); }); }, true);
+function podList(list, labelFn) { return list.map(function (p) { return podHtml(p, labelFn ? labelFn(p) : null); }).join(''); }
 function mediaShelf(unit, module) {
   function f(x) { return (unit == null || x.unit == unit) && (module == null || x.module === module); }
-  var pods = (MEDIA.podcasts || []).filter(f), vids = (MEDIA.videos || []).filter(f), ex = (MEDIA.extras || []).filter(f);
+  var all = MEDIA.podcasts || [], pods = all.filter(f), vids = (MEDIA.videos || []).filter(f), ex = (MEDIA.extras || []).filter(f);
+  if (module) pods = pods.filter(function (p) { return !p.stage && !p.pattern; }); // stage and pattern episodes have their own slots
   if (!pods.length && !vids.length && !ex.length) return module ? '' : '<div class="media"><div class="mitem"><span aria-hidden="true">🎧</span><div><b>Podcasts and videos are coming.</b><div class="small muted">When T.Chris adds an episode, it appears here and on the module it belongs to.</div></div></div></div>';
   var h = '<div class="media">';
-  pods.forEach(function (p) { h += '<div class="mitem"><span aria-hidden="true">🎧</span><div style="flex:1"><b>' + esc(p.title) + '</b> <span class="small muted">' + esc(p.duration || '') + '</span>' +
-    (p.external ? '<div><a class="btn sm ghost" target="_blank" rel="noopener" href="' + esc(p.url) + '">Listen</a></div>' : '<audio controls preload="none" src="' + esc(p.url) + '" style="width:100%;margin-top:6px"></audio>') +
-    (p.transcript ? '<details><summary class="small">Transcript</summary><div class="small">' + p.transcript + '</div></details>' : '') + '</div></div>'; });
+  if (!module && unit == null && pods.length) { // Base Camp: progress + the next three to hear
+    var heard = pods.filter(function (p) { return S.pods[p.id]; }).length, nxt = pods.filter(function (p) { return !S.pods[p.id]; }).slice(0, 3);
+    h += '<div class="mitem"><span aria-hidden="true">🎧</span><div style="flex:1"><b>' + pods.length + ' short lesson podcasts</b> <span class="small muted">· you have heard ' + heard + '</span><div class="small muted">One for every grammar stage and every vocabulary pattern. Listen before you start a lesson. Find them all on each unit’s Grammar trail and Patterns pages.</div></div></div>' +
+      (nxt.length ? '<div class="small muted">Up next:</div>' + podList(nxt, function (p) { return 'Unit ' + p.unit + ' · ' + (p.stage ? 'Grammar ' + STAGES[p.stage].name : 'Pattern'); }) : '');
+  } else if (!module && pods.length) { // unit page: grouped
+    var gs = pods.filter(function (p) { return p.stage; }), ps = pods.filter(function (p) { return p.pattern; }), other = pods.filter(function (p) { return !p.stage && !p.pattern; });
+    if (gs.length) h += '<h3 class="podh">⚙️ Grammar: one podcast per stage</h3>' + podList(gs, function (p) { var s = STAGES[p.stage]; return s ? 'Stage ' + s.n + ': ' + s.name : p.title; });
+    if (ps.length) h += '<h3 class="podh">🧠 Vocabulary patterns: one podcast per card</h3>' + podList(ps, function (p) { var c = PATMAP[p.pattern + '@u' + p.unit]; return c ? stripTags(c.title) : p.title; });
+    h += podList(other);
+  } else h += podList(pods);
   vids.forEach(function (v) { var src = v.youtube ? 'https://www.youtube-nocookie.com/embed/' + esc(v.youtube) : esc(v.iframe || '');
     h += '<div class="mitem" style="display:block"><b>🎬 ' + esc(v.title) + '</b> <span class="small muted">' + esc(v.duration || '') + '</span><div style="position:relative;aspect-ratio:16/9;margin-top:8px"><iframe src="' + src + '" title="' + esc(v.title) + '" style="position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:10px" allowfullscreen loading="lazy"></iframe></div></div>'; });
   ex.forEach(function (x) { h += '<div class="mitem"><span aria-hidden="true">🧩</span><a href="' + esc(x.url) + '" target="_blank" rel="noopener"><b>' + esc(x.title) + '</b></a></div>'; });
@@ -317,7 +347,7 @@ function trailMap(data) {
         ck = s.checkpoint, ckr = ck ? S.cks[ck.id] : null, unlocked = done === all;
     return '<section class="stage' + (ckr && ckr.stars >= 2 ? ' done' : '') + '"><div class="waypt" aria-hidden="true">' + (s.icon || '•') + '</div>' +
       '<div class="stage-head"><h3>Stage ' + s.n + ': ' + esc(s.name) + '</h3><span class="of">' + done + '/' + all + ' modules</span></div>' +
-      (s.blurb ? '<p class="blurb">' + s.blurb + '</p>' : '') + '<div class="mods">' +
+      (s.blurb ? '<p class="blurb">' + s.blurb + '</p>' : '') + podHtml(podStage(s.id), 'Listen first: the Stage ' + s.n + ' podcast') + '<div class="mods">' +
       s.modules.map(function (m) { var r = S.mods[m.id] || {}, onRoute = (S.route || []).indexOf(m.id) >= 0 && !(r.stars >= 2);
         return '<a class="mod' + (onRoute ? ' route' : '') + '" href="' + modUrl(m) + '"><b>' + m.name + '</b>' + stars(r.stars || 0) +
           '<span class="meta">' + lvl(m.cefr) + (m.extra ? '<span class="tag extra">Extra</span>' : '') + '<span>' + m.items.length + ' questions</span>' + (m.page ? '<span>Book ' + esc(m.page) + '</span>' : '') + (onRoute ? '<span class="tag b1">On your route</span>' : '') + '</span></a>'; }).join('') +
@@ -382,7 +412,7 @@ function patternsView(u) {
   return '<p class="muted" style="max-width:70ch">The words in this unit are not a random list. These cards show the systems underneath: ' + intro + '. Learn a pattern and you learn ten words at once.</p>' + treeCallout(u) + '<div class="grid2 wide">' +
     ps.map(function (p) { var seen = S.pats[u + ':' + p.id];
       return '<article class="card pcard" id="pat-' + p.id + '"><div class="row" style="justify-content:space-between"><span class="pi" aria-hidden="true">' + p.icon + '</span><span class="tag">' + esc(p.kind) + (seen ? ' · ✓ read' : '') + '</span></div>' +
-        '<h3>' + p.title + '</h3><p class="insight">' + p.insight + '</p>' +
+        '<h3>' + p.title + '</h3>' + podHtml(podPattern(UNITS[u].n, p.id), 'Listen: the podcast for this pattern') + '<p class="insight">' + p.insight + '</p>' +
         '<div class="wordchips">' + (p.items || []).map(function (id) { return wchip(id); }).join('') + '</div>' +
         (p.examples && p.examples.length ? '<ol>' + p.examples.map(function (e) { return '<li>' + e + '</li>'; }).join('') + '</ol>' : '') +
         (p.drill ? '<div class="boxx tip"><h4>Try it now</h4>' + p.drill + '</div>' : '') +
@@ -527,7 +557,7 @@ function viewModule(id) {
   app.innerHTML = '<div class="row small" style="margin-bottom:10px"><a href="' + back + '">← Unit ' + U.n + ' ' + (m.kind === 'g' ? 'grammar' : 'word') + ' trail</a></div>' +
     '<div class="unit-hero"><div><div class="num">Unit ' + U.n + ' · ' + (m.kind === 'g' ? 'Grammar' : 'Vocabulary') + ' · Stage ' + s.n + ': ' + esc(s.name) + '</div><h1>' + m.name + '</h1>' +
     '<div class="row small">' + lvl(m.cefr) + (m.extra ? '<span class="tag extra">Extra: beyond the book’s rule box</span>' : '') + (m.page ? '<span class="muted">Student’s Book ' + esc(m.page) + '</span>' : '') + '<span>' + stars(r.stars || 0) + '</span>' + (r.n ? '<span class="muted">Best ' + Math.round(100 * (r.best || 0)) + '%</span>' : '') + '</div></div></div>' +
-    ruleHtml(m) + mediaShelf(null, m.id) + (['g6m1','g6m2','g6m3','g6m5','g6m6','g6m8','g6m9','g7m10'].indexOf(m.id) >= 0 ? treeCallout(m.unit) : '') +
+    podHtml(podStage(s.id), 'Stage ' + s.n + ' podcast: hear the big picture first') + ruleHtml(m) + mediaShelf(null, m.id) + (['g6m1','g6m2','g6m3','g6m5','g6m6','g6m8','g6m9','g7m10'].indexOf(m.id) >= 0 ? treeCallout(m.unit) : '') +
     '<div class="next" style="margin-top:18px"><div><h3>Practice: ' + m.items.length + ' questions</h3><div class="muted">Wrong first time? You get a hint and a second try. 3★ = everything right first time.</div></div><button class="btn mango" data-act="start" data-id="' + id + '">' + (r.n ? 'Practise again' : 'Start practice') + '</button></div>' +
     (nxt ? '<div class="small">Next module: <a href="' + modUrl(nxt) + '">' + nxt.name + '</a></div>' : (s.checkpoint ? '<div class="small">End of the stage: <a href="#/ck/' + s.checkpoint.id + '">🏔️ Checkpoint</a></div>' : ''));
 }
