@@ -55,6 +55,15 @@ for(const f of files){
   const n=pos.reduce((a,b)=>a+b,0);
   if(n) console.log(`  items ${items.length} | key positions ${pos.map(p=>Math.round(100*p/n)+'%').join(' ')} | key is unique-longest ${Math.round(100*longest/n)}% | cefr ${JSON.stringify(cefr)}`);
   if(n>=12){ pos.forEach((p,i)=>{ if(p/n<0.17||p/n>0.33) W('key position '+i+' at '+Math.round(100*p/n)+'%')}); if(longest/n>0.3) W('key is longest option too often'); }
+  // sorting trees: every keyword in exactly one leaf, every branch reachable and pointing somewhere real
+  if(win.TREES) for(const u of ['u6','u7']){ const T=win.TREES[u]; if(!T){E('TREES.'+u+' missing');continue;} const need=u==='u6'?U6:U7, seen={};
+    for(const k in T.leaves){ const L=T.leaves[k]; if(!L.title||!L.rule) E('TREES.'+u+' leaf '+k+' needs title+rule'); (L.words||[]).forEach(w=>{ if(!ALL.has(w)) E('TREES.'+u+' leaf '+k+' unknown word '+w); seen[w]=(seen[w]||0)+1; }); }
+    need.forEach(id=>{ if(!seen[id]) E('TREES.'+u+' word not in any leaf: '+id); else if(seen[id]>1) E('TREES.'+u+' word in '+seen[id]+' leaves: '+id); });
+    const reach=new Set(); (function go(id){ if(reach.has(id)) return; reach.add(id); const n=T.nodes[id]; if(!n) { if(!T.leaves[id]) E('TREES.'+u+' branch to nowhere: '+id); return; }
+      if(!n.q||!(n.opts||[]).length||n.opts.length<2) E('TREES.'+u+' node '+id+' needs q and 2+ opts'); n.opts.forEach(o=>go(o.to)); })(T.root);
+    Object.keys(T.nodes).concat(Object.keys(T.leaves)).forEach(k=>{ if(!reach.has(k)) E('TREES.'+u+' unreachable '+k); });
+    Object.keys(T.notes||{}).forEach(k=>{ if(!need.includes(k)) E('TREES.'+u+' note for unknown word '+k); });
+    console.log('  tree '+u+': '+Object.keys(T.nodes).length+' questions, '+Object.keys(T.leaves).length+' leaves, '+Object.keys(seen).length+' words'); }
   // word files
   for(const u of ['u6','u7']) if(win.WORDS&&win.WORDS[u]){ const need=u==='u6'?U6:U7; const have=new Set((win.WORDS[u].words||[]).map(w=>w.id));
     need.forEach(id=>{ if(!have.has(id)) E('WORDS.'+u+' missing '+id)});

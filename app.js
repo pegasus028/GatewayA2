@@ -36,7 +36,7 @@ function allMods(u, kind) { var d = UNITS[u][kind]; var out = []; if (d) d.stage
 
 /* ---------------- state ---------------- */
 var KEY = 'trailmix.v1', S;
-function fresh() { return { v:1, xp:0, mods:{}, cks:{}, faults:{}, fixed:0, words:{}, pages:{}, pats:{}, tests:{}, badges:{}, streak:{last:'',n:0,best:0}, bestCombo:0, perfect:0, route:[] }; }
+function fresh() { return { v:1, xp:0, mods:{}, cks:{}, faults:{}, fixed:0, words:{}, pages:{}, pats:{}, tests:{}, tree:{}, badges:{}, streak:{last:'',n:0,best:0}, bestCombo:0, perfect:0, route:[] }; }
 function load() { try { S = JSON.parse(localStorage.getItem(KEY)) || fresh(); } catch (e) { S = fresh(); }
   var f = fresh(); for (var k in f) if (!(k in S)) S[k] = f[k]; }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
@@ -80,6 +80,7 @@ var BADGES = [
   {id:'base', icon:'⛺', name:'Base Camp', how:'Finish TU-style Mock 1.'},
   {id:'summit', icon:'🚩', name:'Summit', how:'Finish TU-style Mock 2.'},
   {id:'mock30', icon:'🏆', name:'30 Club', how:'Score 30/40 or more in a TU-style mock.'},
+  {id:'sorter', icon:'🌳', name:'Word Sorter', how:'Sort 30 words right first time in the Sorting Trees.'},
   {id:'u6master', icon:'🌶️', name:'Unit 6 Master', how:'2+ stars in every Unit 6 module.'},
   {id:'u7master', icon:'🐅', name:'Unit 7 Master', how:'2+ stars in every Unit 7 module.'}
 ];
@@ -97,6 +98,7 @@ function checkBadges() {
   var three = ms.filter(function (m) { return m.stars === 3; }).length; if (three >= 1) give('three'); if (three >= 3) give('hat');
   Object.keys(S.cks).forEach(function (k) { var c = S.cks[k]; if (c.stars >= 2) give('boss'); if (c.best >= 1) give('clean'); });
   if (ms.some(function (m) { return m.nohint; })) give('nohint');
+  if (count(S.tree) >= 30) give('sorter');
   if (S.bestCombo >= 10) give('combo10'); if (S.fixed >= 10) give('fixer');
   if (S.streak.best >= 3) give('streak3'); if (S.streak.best >= 7) give('streak7');
   var m1 = S.tests.mock1, m2 = S.tests.mock2; if (m1 && m1.hist && m1.hist.length) give('base'); if (m2 && m2.hist && m2.hist.length) give('summit');
@@ -224,16 +226,18 @@ function viewUnit(u, tab, sub, q) {
   var U = UNITS[u];
   var html = '<div class="unit-hero"><div><div class="num">Unit ' + U.n + ' · Student’s Book ' + U.pages + '</div><h1>' + U.icon + ' ' + U.title + '</h1></div>' +
     '<nav class="seg" aria-label="Unit sections"><a href="#/' + u + '/vocab/story"' + (tab === 'vocab' ? ' aria-current="page"' : '') + '>📚 Vocabulary</a><a href="#/' + u + '/grammar"' + (tab === 'grammar' ? ' aria-current="page"' : '') + '>⚙️ Grammar</a></nav></div>';
-  if (tab === 'grammar') { app.innerHTML = html + '<p class="muted" style="max-width:70ch">Each stage is a camp on the trail. Open a module, read the rule, then answer 5–7 questions. Clear every module in a stage to unlock its checkpoint.</p>' + trailMap(U.g) + unitMedia(u); return; }
-  var subs = [['story','📖 Storybook'],['train','🧭 Word trail'],['patterns','🧠 Patterns'],['words','📇 Word bank']];
+  if (tab === 'grammar') { app.innerHTML = html + '<p class="muted" style="max-width:70ch">Each stage is a camp on the trail. Open a module, read the rule, then answer 5–7 questions. Clear every module in a stage to unlock its checkpoint.</p>' + treeCallout(u) + trailMap(U.g) + unitMedia(u); return; }
+  var subs = [['story','📖 Storybook'],['train','🧭 Word trail'],['patterns','🧠 Patterns'],['tree','🌳 Sorting tree'],['words','📇 Word bank']];
   html += '<nav class="subseg" aria-label="Vocabulary sections">' + subs.map(function (s) { return '<a href="#/' + u + '/vocab/' + s[0] + '"' + (sub === s[0] ? ' aria-current="page"' : '') + '>' + s[1] + '</a>'; }).join('') + '</nav>';
   app.innerHTML = html + '<div id="vbody"></div>';
   var body = document.getElementById('vbody');
   if (sub === 'train') body.innerHTML = '<p class="muted" style="max-width:70ch">The words in small groups, with the idea that links each group. Every module has picture, sorting and gap questions.</p>' + trailMap(U.v) + unitMedia(u);
   else if (sub === 'patterns') { body.innerHTML = patternsView(u); if (q.p) { var el = document.getElementById('pat-' + q.p); if (el) { el.classList.add('open'); markPattern(u, q.p); setTimeout(function () { el.scrollIntoView({ block:'start' }); }, 50); } } }
   else if (sub === 'words') wordBank(u, body);
+  else if (sub === 'tree') treeView(u, body, q);
   else storyView(u, body, q);
 }
+function treeCallout(u) { return TR[u] ? '<a class="next tcall" href="#/' + u + '/vocab/tree"><div><h3>🌳 Sorting tree: ' + esc(TR[u].title) + '</h3><div class="muted">Answer 2–3 questions about any word and see which group it belongs to — and what that means for the grammar.</div></div><span class="btn accent sm">Open the tree</span></a>' : ''; }
 function unitMedia(u) { var m = mediaShelf(UNITS[u].n, null); return '<div class="section"><h2>Listen and watch</h2></div>' + m; }
 function trailMap(data) {
   if (!data) return '<div class="empty">This trail is not loaded.</div>';
@@ -304,7 +308,7 @@ function wordBank(u, body) {
 function patternsView(u) {
   var ps = UNITS[u].pats;
   var intro = u === 'u6' ? 'why some foods can’t be counted, why jam lives in a jar, how <em>pancake</em> and <em>milkshake</em> are built' : 'how <em>sun</em> becomes <em>sunny</em>, why a jellyfish isn’t a fish, and why you are <em>on</em> a beach but <em>in</em> a forest';
-  return '<p class="muted" style="max-width:70ch">The words in this unit are not a random list. These cards show the systems underneath: ' + intro + '. Learn a pattern and you learn ten words at once.</p><div class="grid2 wide">' +
+  return '<p class="muted" style="max-width:70ch">The words in this unit are not a random list. These cards show the systems underneath: ' + intro + '. Learn a pattern and you learn ten words at once.</p>' + treeCallout(u) + '<div class="grid2 wide">' +
     ps.map(function (p) { var seen = S.pats[u + ':' + p.id];
       return '<article class="card pcard" id="pat-' + p.id + '"><div class="row" style="justify-content:space-between"><span class="pi" aria-hidden="true">' + p.icon + '</span><span class="tag">' + esc(p.kind) + (seen ? ' · ✓ read' : '') + '</span></div>' +
         '<h3>' + p.title + '</h3><p class="insight">' + p.insight + '</p>' +
@@ -315,6 +319,90 @@ function patternsView(u) {
 }
 function markPattern(u, id) { var k = u + ':' + id; if (!S.pats[k]) { S.pats[k] = 1; addXP(5); checkBadges(); } }
 function wchip(id) { var w = WMAP[id]; if (!w) return ''; return '<button class="wchip' + (S.words[id] ? ' got' : '') + '" data-w="' + id + '">' + wordImg(id) + esc(w.word) + '</button>'; }
+
+/* ---------------- sorting tree ---------------- */
+var TR = window.TREES || {}, TSORT = null;
+function treeLeafOf(u, id) { var T = TR[u]; if (!T) return null; for (var k in T.leaves) if (T.leaves[k].words.indexOf(id) >= 0) return k; return null; }
+function treePath(u, id) { // correct route: [{node, opt index}] ending at the word's leaf
+  var T = TR[u], leaf = treeLeafOf(u, id), out = null;
+  (function go(nid, acc) { if (out) return; if (nid === leaf) { out = acc; return; } var n = T.nodes[nid]; if (!n) return;
+    n.opts.forEach(function (o, i) { go(o.to, acc.concat([{ node: nid, i: i }])); }); })(T.root, []);
+  return out || [];
+}
+function treeWords(u) { return (UNITS[u].words.words || []).filter(function (w) { return treeLeafOf(u, w.id); }); }
+function treeDone(u) { return treeWords(u).filter(function (w) { return S.tree[u + ':' + w.id]; }).length; }
+function treePickNew(u, not) { var ws = treeWords(u), left = ws.filter(function (w) { return !S.tree[u + ':' + w.id] && w.id !== not; });
+  var pool = left.length ? left : ws.filter(function (w) { return w.id !== not; }); return pool[Math.floor(Math.random() * pool.length)].id; }
+function treeStart(u, id) { TSORT = { u: u, w: id, path: treePath(u, id), step: 0, miss: 0, picked: null, done: false }; }
+function treeView(u, body, q) {
+  var T = TR[u]; if (!T) { body.innerHTML = '<div class="empty">No sorting tree for this unit yet.</div>'; return; }
+  if (q.w && WMAP[q.w] && WMAP[q.w].unit === u) treeStart(u, q.w);
+  else if (!TSORT || TSORT.u !== u) treeStart(u, treePickNew(u));
+  treeView.body = body; treePaint();
+}
+function treePaint() {
+  var R = TSORT, u = R.u, T = TR[u], w = WMAP[R.w], body = treeView.body; if (!body || !w) return;
+  var ws = treeWords(u), done = treeDone(u), cur = R.path[R.step], leafId = treeLeafOf(u, R.w), leaf = T.leaves[leafId];
+  var h = '<p class="muted" style="max-width:72ch">' + T.intro + '</p>' +
+    '<div class="row small muted" style="margin-bottom:12px"><span>🌳 ' + done + '/' + ws.length + ' words sorted right first time</span><div class="bar" style="flex:1;max-width:240px"><i style="width:' + Math.round(100 * done / Math.max(1, ws.length)) + '%"></i></div></div>' +
+    '<div class="tsort">';
+  // left: the sorter
+  h += '<section class="card tpanel"><div class="tword"><div class="tpic">' + wordImg(w.id) + '</div><div><div class="small muted">Sort this word</div><h2>' + esc(w.word) + '</h2>' +
+    '<div class="row small">' + lvl(w.level) + (S.tree[u + ':' + w.id] ? '<span class="tag a2">✓ sorted</span>' : '') + '<button class="say" data-act="say" data-t="' + esc(w.word) + '">🔊</button></div></div></div>' +
+    '<div class="row" style="margin:10px 0 4px"><button class="btn ghost sm" data-act="tnew">🎲 Another word</button>' +
+    '<select class="tsel" aria-label="Choose a word to sort"><option value="">Choose a word…</option>' + ws.map(function (x) { return '<option value="' + x.id + '"' + (x.id === R.w ? ' selected' : '') + '>' + (S.tree[u + ':' + x.id] ? '✓ ' : '') + esc(x.word) + '</option>'; }).join('') + '</select></div>';
+  // breadcrumb of answered steps
+  if (R.step) h += '<ol class="tcrumbs">' + R.path.slice(0, R.step).map(function (p) { var n = T.nodes[p.node]; return '<li><span class="muted">' + esc(n.q) + '</span> <b>' + esc(n.opts[p.i].label) + '</b></li>'; }).join('') + '</ol>';
+  if (!R.done) {
+    var n = T.nodes[cur.node];
+    h += '<div class="tq"><div class="small muted">Question ' + (R.step + 1) + '</div><h3>' + esc(n.q) + '</h3>' + (n.help ? '<p class="small muted">' + esc(n.help) + '</p>' : '') +
+      '<div class="opts" role="group" aria-label="Answers">' + n.opts.map(function (o, i) {
+        var cls = R.picked == null ? '' : (i === cur.i ? ' right' : (i === R.picked ? ' wrong' : ''));
+        return '<button class="opt' + cls + '" data-act="tans" data-i="' + i + '"' + (R.picked != null ? ' disabled' : '') + '><span class="k">' + 'ABCDEFG'[i] + '</span><span>' + esc(o.label) + '</span></button>'; }).join('') + '</div>';
+    if (R.picked != null) h += '<div class="fb bad" role="status"><b>Not quite.</b> ' + (T.notes[R.w] || leaf.sum) + '</div><div class="qactions"><span></span><button class="btn accent" data-act="tgo">Follow the right branch →</button></div>';
+    h += '</div>';
+  } else {
+    var first = R.miss === 0;
+    h += '<div class="tres tone-' + leaf.tone + '"><div class="fb ' + (first ? 'good' : 'hint') + '" role="status"><b>' + (first ? 'Sorted right first time!' : 'Sorted — with ' + R.miss + ' wrong turn' + (R.miss > 1 ? 's' : '') + '.') + '</b>' + (R.xp ? ' +' + R.xp + ' XP' : '') + '</div>' +
+      '<div class="tleafhead"><span class="ti" aria-hidden="true">' + leaf.icon + '</span><div><div class="small muted">' + esc(w.word) + ' goes here</div><h3>' + esc(leaf.title) + '</h3></div></div>' +
+      '<p>' + leaf.rule + '</p>' + treeGrid(leaf) +
+      (w.grammar ? '<div class="boxx tip"><h4>' + esc(w.word) + '</h4>' + w.grammar + (w.ex && w.ex[0] ? '<div style="margin-top:6px"><em>' + w.ex[0] + '</em></div>' : '') + '</div>' : '') +
+      '<div class="modlinks">' + leaf.pats.map(function (pid) { var p = PATMAP[pid + '@' + u]; return p ? '<a class="linkchip" href="#/' + u + '/vocab/patterns?p=' + pid + '">' + p.icon + ' ' + stripTags(p.title) + '</a>' : ''; }).join('') + '</div>' +
+      '<div class="row" style="margin-top:12px"><button class="btn mango" data-act="tnext">Next word →</button><button class="btn ghost" data-w="' + w.id + '">📇 Word card</button><button class="btn ghost" data-act="tagain">Sort it again</button></div></div>';
+  }
+  h += '</section>';
+  // right: the whole tree, with the route lit up
+  var on = {}, stepNode = R.done ? null : cur.node;
+  R.path.slice(0, R.step).forEach(function (p) { on[p.node + '#' + p.i] = 1; on[p.node] = 1; });
+  if (stepNode) on[stepNode] = 1;
+  h += '<section class="ttree"><div class="row" style="justify-content:space-between;margin-bottom:6px"><h3 style="margin:0">' + esc(T.title) + '</h3><span class="small muted">Tap a word to open its card</span></div>' +
+    '<div class="tlegend small"><span class="lg c">countable</span><span class="lg u">uncountable</span><span class="lg b">both</span>' + (u === 'u7' ? '<span class="lg p">in / on</span><span class="lg a">adjective</span>' : '<span class="lg k">container</span>') + '</div>' +
+    '<ul class="tree' + (R.step || R.done ? ' lit' : '') + '">' + treeNodeHtml(T, T.root, on, stepNode, R.done ? leafId : null, R.w) + '</ul></section></div>';
+  body.innerHTML = h;
+  if (R.step && window.innerWidth >= 1000) { var tgt = document.querySelector('.tnode.cur > .tbox, .tleaf.hit > .tbox'); if (tgt) { var bx = tgt.getBoundingClientRect();
+    if (bx.top < 130 || bx.bottom > innerHeight) tgt.scrollIntoView({ block:'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); } }
+}
+function treeGrid(leaf) { return leaf.grid && leaf.grid.length ? '<table class="parts tgrid"><tbody>' + leaf.grid.map(function (r) { return '<tr><td>' + esc(r[0]) + '</td><td><b>' + esc(r[1]) + '</b></td></tr>'; }).join('') + '</tbody></table>' : ''; }
+function treeNodeHtml(T, id, on, cur, hit, wid) {
+  var n = T.nodes[id];
+  if (!n) { var L = T.leaves[id];
+    return '<li class="tleaf tone-' + L.tone + (hit === id ? ' hit' : '') + '"><div class="tbox"><b>' + L.icon + ' ' + esc(L.title) + '</b><span class="small muted">' + esc(L.sum) + '</span>' +
+      '<div class="wordchips">' + L.words.map(function (x) { return x === wid && hit === id ? wchip(x).replace('class="wchip', 'class="wchip me') : wchip(x); }).join('') + '</div></div></li>'; }
+  return '<li class="tnode' + (on[id] ? ' on' : '') + (cur === id ? ' cur' : '') + '"><div class="tbox q">❓ ' + esc(n.q) + '</div><ul>' +
+    n.opts.map(function (o, i) { var lit = on[id + '#' + i];
+      return '<li class="tbranch' + (lit ? ' on' : '') + '"><span class="tlabel">' + esc(o.label) + '</span><ul>' + treeNodeHtml(T, o.to, on, cur, hit, wid) + '</ul></li>'; }).join('') + '</ul></li>';
+}
+function treeAnswer(i) {
+  var R = TSORT; if (!R || R.done || R.picked != null) return; var cur = R.path[R.step];
+  if (i === cur.i) { R.step++; treeMaybeFinish(); treePaint(); }
+  else { R.miss++; R.picked = i; treePaint(); }
+}
+function treeFollow() { var R = TSORT; R.picked = null; R.step++; treeMaybeFinish(); treePaint(); }
+function treeMaybeFinish() {
+  var R = TSORT; if (R.step < R.path.length) return; R.done = true; R.xp = 0;
+  var k = R.u + ':' + R.w; touchStreak();
+  if (R.miss === 0 && !S.tree[k]) { S.tree[k] = today(); R.xp = 3; addXP(3); checkBadges(); } else save();
+}
 
 /* ---------------- word card sheet ---------------- */
 var SHEET = [];
@@ -337,6 +425,7 @@ function openWord(id, push) {
     sec('Grammar', w.grammar) + sec('Word family', w.forms) + sec('Say it right', w.say) + sec('British / American', w.uk_us) +
     sec('Watch out', w.trap ? '<span>' + w.trap + '</span>' : '') + sec('Did you know?', w.fact) +
     sec('Related words', (w.related || []).filter(function (r) { return WMAP[r]; }).map(function (r) { return '<button class="linkchip" data-act="wrel" data-w2="' + r + '">' + (WMAP[r].emoji || '') + ' ' + esc(WMAP[r].word) + '</button>'; }).join(' ')) +
+    sec('Sorting tree', TR[w.unit] && treeLeafOf(w.unit, id) ? '<a class="linkchip" href="#/' + w.unit + '/vocab/tree?w=' + id + '">🌳 Sort ' + esc(w.word) + ' in the tree</a>' : '') +
     sec('Patterns', pats.map(function (p) { return '<a class="linkchip" href="#/' + w.unit + '/vocab/patterns?p=' + p.id + '">' + p.icon + ' ' + stripTags(p.title) + '</a>'; }).join(' ')) +
     '</div></div></div></div>';
   closeSheet(true); var d = document.createElement('div'); d.id = 'sheet'; d.innerHTML = html; document.body.appendChild(d);
@@ -366,7 +455,7 @@ function viewModule(id) {
   app.innerHTML = '<div class="row small" style="margin-bottom:10px"><a href="' + back + '">← Unit ' + U.n + ' ' + (m.kind === 'g' ? 'grammar' : 'word') + ' trail</a></div>' +
     '<div class="unit-hero"><div><div class="num">Unit ' + U.n + ' · ' + (m.kind === 'g' ? 'Grammar' : 'Vocabulary') + ' · Stage ' + s.n + ': ' + esc(s.name) + '</div><h1>' + m.name + '</h1>' +
     '<div class="row small">' + lvl(m.cefr) + (m.extra ? '<span class="tag extra">Extra: beyond the book’s rule box</span>' : '') + (m.page ? '<span class="muted">Student’s Book ' + esc(m.page) + '</span>' : '') + '<span>' + stars(r.stars || 0) + '</span>' + (r.n ? '<span class="muted">Best ' + Math.round(100 * (r.best || 0)) + '%</span>' : '') + '</div></div></div>' +
-    ruleHtml(m) + mediaShelf(null, m.id) +
+    ruleHtml(m) + mediaShelf(null, m.id) + (['g6m1','g6m2','g6m3','g6m5','g6m6','g6m8','g6m9','g7m10'].indexOf(m.id) >= 0 ? treeCallout(m.unit) : '') +
     '<div class="next" style="margin-top:18px"><div><h3>Practice: ' + m.items.length + ' questions</h3><div class="muted">Wrong first time? You get a hint and a second try. 3★ = everything right first time.</div></div><button class="btn mango" data-act="start" data-id="' + id + '">' + (r.n ? 'Practise again' : 'Start practice') + '</button></div>' +
     (nxt ? '<div class="small">Next module: <a href="' + modUrl(nxt) + '">' + nxt.name + '</a></div>' : (s.checkpoint ? '<div class="small">End of the stage: <a href="#/ck/' + s.checkpoint.id + '">🏔️ Checkpoint</a></div>' : ''));
 }
@@ -636,6 +725,10 @@ document.addEventListener('click', function (e) {
   if (act === 'start') { var m = MODS[a.getAttribute('data-id')]; return startRun('mod', m.id, m.items, { title: (m.kind === 'g' ? '⚙️ ' : '📚 ') + 'Unit ' + UNITS[m.unit].n + ' · ' + m.name, back: modUrl(m) }); }
   if (act === 'startck') { var c = CKS[a.getAttribute('data-id')]; return startRun('ck', c.id, shuffle(c.items), { mode:'test', title:'🏔️ Checkpoint · ' + c.stage.name, back:'#/ck/' + c.id }); }
   if (act === 'ans') return answer(+a.getAttribute('data-j'));
+  if (act === 'tans') return treeAnswer(+a.getAttribute('data-i'));
+  if (act === 'tgo') return treeFollow();
+  if (act === 'tnew' || act === 'tnext') { treeStart(TSORT.u, treePickNew(TSORT.u, TSORT.w)); treePaint(); var tp = document.querySelector('.tpanel'); if (tp && tp.getBoundingClientRect().top < 0) tp.scrollIntoView({ block:'start' }); return; }
+  if (act === 'tagain') { treeStart(TSORT.u, TSORT.w); return treePaint(); }
   if (act === 'hint') return showHint();
   if (act === 'next') return nextQ();
   if (act === 'mockstart' || act === 'mockretry') { var id = a.getAttribute('data-id'); S.tests[id] = S.tests[id] || {}; S.tests[id].prog = { ans:{}, flags:{}, start: Date.now(), cur: 0 }; save(); touchStreak();
@@ -649,6 +742,9 @@ document.addEventListener('click', function (e) {
     var left = EXAM.items.filter(function (x) { return EXAM.r.prog.ans[x.id] == null; }).length; a.setAttribute('data-sure', '1'); a.textContent = left ? 'Submit with ' + left + ' blank?' : 'Yes, submit'; return; }
   if (act === 'report') { var txt = reportText(); (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(function () { toast('Report copied. Paste it into Line for T.Chris.'); }, function () { app.insertAdjacentHTML('beforeend', '<pre class="card" style="white-space:pre-wrap">' + esc(txt) + '</pre>'); }); return; }
   if (act === 'reset') { if (a.getAttribute('data-sure')) { S = fresh(); save(); toast('Progress cleared.'); location.hash = '#/home'; route(); return; } a.setAttribute('data-sure', '1'); a.textContent = 'Press again to erase everything'; return; }
+});
+document.addEventListener('change', function (e) {
+  if (e.target.matches && e.target.matches('.tsel') && e.target.value && TSORT) { treeStart(TSORT.u, e.target.value); treePaint(); }
 });
 document.addEventListener('keydown', function (e) {
   if (!RUN || document.getElementById('sheet')) return;
