@@ -327,3 +327,16 @@ a.tcall:hover{outline:2px solid var(--accent);outline-offset:2px}
 .tleaf.hit>.tbox{box-shadow:0 0 0 4px color-mix(in srgb,var(--tc) 35%,transparent)}
 @media (prefers-reduced-motion:no-preference){.tree.lit .tbranch{transition:opacity .25s}}
 @media (max-width:520px){.tree ul{margin-left:6px;padding-left:8px}.tree ul>li::before{left:-8px;width:6px}.tree .tbranch>ul{padding-left:8px}.tword h2{font-size:26px}.tpic{width:72px;height:72px}}
+
+/* ---------- Online saving ---------- */
+a.chip.sync{text-decoration:none;color:inherit}
+.chip.sync.out{background:var(--u7-soft);color:var(--u7);font-weight:700}
+.chip.sync.offline,.chip.sync.error{background:var(--bad-soft)}
+.acct{margin-bottom:18px;border-left:6px solid var(--u7)}
+.acct h2{margin-top:0}
+.acctform{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+.acctform label{display:grid;gap:4px;font-weight:700;font-size:14.5px;flex:1 1 180px}
+.acctform input{border:1.5px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;background:var(--card);font-size:17px;min-height:44px}
+.acctform input:focus{outline:2px solid var(--focus);outline-offset:1px}
+.acctform .btn{min-height:44px}
+@media (max-width:440px){ .chips .chip.words{display:none} .chip{padding:5px 8px} .chips{gap:4px} }

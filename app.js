@@ -36,10 +36,11 @@ function allMods(u, kind) { var d = UNITS[u][kind]; var out = []; if (d) d.stage
 
 /* ---------------- state ---------------- */
 var KEY = 'trailmix.v1', S;
-function fresh() { return { v:1, xp:0, mods:{}, cks:{}, faults:{}, fixed:0, words:{}, pages:{}, pats:{}, tests:{}, tree:{}, badges:{}, streak:{last:'',n:0,best:0}, bestCombo:0, perfect:0, route:[] }; }
+function fresh() { return { v:1, xp:0, mods:{}, cks:{}, faults:{}, fixed:0, words:{}, pages:{}, pats:{}, tests:{}, tree:{}, badges:{}, streak:{last:'',n:0,best:0}, bestCombo:0, perfect:0, route:[], mins:{}, owner:'' }; }
 function load() { try { S = JSON.parse(localStorage.getItem(KEY)) || fresh(); } catch (e) { S = fresh(); }
   var f = fresh(); for (var k in f) if (!(k in S)) S[k] = f[k]; }
-function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+function save(quiet) { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} if (!quiet && window.TMSync) TMSync.dirty(); }
+function emit(e) { if (window.TMSync) TMSync.event(e); }
 load();
 function today() { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
 function touchStreak() {
@@ -105,10 +106,10 @@ function checkBadges() {
   if ([m1, m2].some(function (m) { return m && (m.best || 0) >= 30; })) give('mock30');
   ['u6','u7'].forEach(function (u) { var all = allMods(u, 'g').concat(allMods(u, 'v'));
     if (all.length && all.every(function (m) { return (S.mods[m.id] || {}).stars >= 2; })) give(u + 'master'); });
-  if (got.length) { save(); got.forEach(function (id, i) { var bd = BADGES.filter(function (x) { return x.id === id; })[0];
+  if (got.length) { save(); got.forEach(function (id, i) { var bd = BADGES.filter(function (x) { return x.id === id; })[0]; emit({ type:'badge', what: bd.icon + ' ' + bd.name, detail: bd.how });
     setTimeout(function () { toast(bd.icon + ' Badge earned: ' + bd.name); confetti(); }, 900 * i + 300); }); }
 }
-function addXP(n) { S.xp += n; touchStreak(); save(); paintChips(); }
+function addXP(n) { var before = rankOf(S.xp).i; S.xp += n; touchStreak(); var r = rankOf(S.xp); if (r.i > before) { emit({ type:'rank', what: r.r.name, score: S.xp }); setTimeout(function () { toast('🏅 New rank: ' + esc(r.r.name)); }, 400); } save(); paintChips(); }
 
 /* ---------------- helpers ---------------- */
 var app = document.getElementById('app');
@@ -139,10 +140,79 @@ function paintChips() {
   document.getElementById('chips').innerHTML =
     '<span class="chip xp" title="Experience points">⭐ ' + S.xp + '<span class="lbl"> XP</span></span>' +
     '<span class="chip" title="Days in a row">🔥 ' + (S.streak.last === today() ? S.streak.n : 0) + '</span>' +
-    '<span class="chip" title="Word cards collected">📖 ' + got + '/' + all + '</span>' +
+    '<span class="chip words" title="Word cards collected">📖 ' + got + '/' + all + '</span>' +
     '<span class="chip rank" title="Your rank">' + esc(rk.name) + '</span>' +
-    '<button class="iconbtn" data-act="theme" aria-label="Switch light or dark mode">◐</button>';
+    syncChip() + '<button class="iconbtn" data-act="theme" aria-label="Switch light or dark mode">◐</button>';
 }
+
+function syncChip() {
+  if (!window.TMSync || !TMSync.enabled) return '';
+  var a = TMSync.account(), st = TMSync.status();
+  if (!a) return '<a class="chip sync out" href="#/record" title="Save your progress online">☁️ Sign in</a>';
+  var ic = { saving:'⏳', saved:'☁️', offline:'📴', error:'⚠️', idle:'☁️' }[st.s] || '☁️';
+  var tip = st.s === 'saved' ? 'Saved online' : st.s === 'saving' ? 'Saving…' : st.s === 'offline' ? 'Offline: your progress will be saved when the internet is back' : st.s === 'error' ? 'Not saved: ' + st.err : 'Signed in';
+  return '<a class="chip sync ' + st.s + '" href="#/record" title="' + esc(tip) + '">' + ic + ' <span class="lbl">' + esc(a.name) + '</span></a>';
+}
+if (window.TMSync) TMSync.onStatus = function () { var c = document.getElementById('chips'); if (c) paintChips(); var b = document.getElementById('acctbox'); if (b) b.innerHTML = accountBox(); };
+
+/* ---------------- online saving: summary for the teacher's sheet ---------------- */
+function storyPages() { var n = 0; ['u6','u7'].forEach(function (u) { (UNITS[u].story && UNITS[u].story.chapters || []).forEach(function (c) { n += c.pages.length; }); }); return n; }
+function minsSince(days) { var t = 0, cut = new Date(); cut.setDate(cut.getDate() - days + 1); var c = cut.getFullYear() + '-' + ('0' + (cut.getMonth() + 1)).slice(-2) + '-' + ('0' + cut.getDate()).slice(-2);
+  Object.keys(S.mins || {}).forEach(function (d) { if (days == null || d >= c) t += S.mins[d]; }); return t; }
+function summary() {
+  var pr = 0; ['u6','u7'].forEach(function (u) { Object.keys(S.pages[u] || {}).forEach(function () { pr++; }); });
+  var allM = Object.keys(MODS), tried = allM.filter(function (k) { return (S.mods[k] || {}).n; });
+  var weak = tried.filter(function (k) { return (S.mods[k].stars || 0) < 2; }).sort(function (a, b) { return (S.mods[a].best || 0) - (S.mods[b].best || 0); })
+    .slice(0, 6).map(function (k) { return 'U' + UNITS[MODS[k].unit].n + ' ' + stripTags(MODS[k].name) + ' (' + Math.round(100 * (S.mods[k].best || 0)) + '%)'; });
+  var tri = S.tests.triage, m1 = S.tests.mock1 || {}, m2 = S.tests.mock2 || {}, o = {};
+  var route = (S.route || []).filter(function (id) { return MODS[id] && !((S.mods[id] || {}).stars >= 2); });
+  o['XP'] = S.xp; o['Rank'] = rankOf(S.xp).r.name;
+  o['Streak (days)'] = S.streak.last === today() ? S.streak.n : 0; o['Best streak'] = S.streak.best || 0;
+  o['Minutes, last 7 days'] = minsSince(7); o['Minutes, total'] = minsSince(null); o['Days studied'] = Object.keys(S.mins || {}).length;
+  o['Word cards (of ' + (W.u6.words.length + W.u7.words.length) + ')'] = count(S.words);
+  o['Story pages (of ' + storyPages() + ')'] = pr;
+  o['Pattern cards (of ' + (UNITS.u6.pats.length + UNITS.u7.pats.length) + ')'] = count(S.pats);
+  o['Tree words sorted (of ' + (treeWords('u6').length + treeWords('u7').length) + ')'] = count(S.tree);
+  ['u6','u7'].forEach(function (u) { [['v','vocab'],['g','grammar']].forEach(function (k) { var p = modProgress(u, k[0]); o['U' + UNITS[u].n + ' ' + k[1] + ' ★ (of ' + p.max + ')'] = p.stars; }); });
+  o['Modules tried (of ' + allM.length + ')'] = tried.length;
+  o['Checkpoints 2★+ (of ' + count(CKS) + ')'] = Object.keys(S.cks).filter(function (k) { return S.cks[k].stars >= 2; }).length;
+  o['Trailhead score'] = tri && tri.res && count(tri.res) ? triageScore().replace('/', ' of ') : '';
+  o['Route modules left'] = route.map(function (id) { return stripTags(MODS[id].name); }).join(', ');
+  o['Mock 1 best (of 40)'] = m1.best != null ? m1.best : ''; o['Mock 2 best (of 40)'] = m2.best != null ? m2.best : '';
+  o['Mock attempts'] = (m1.hist || []).length + (m2.hist || []).length;
+  o['Faults waiting'] = count(S.faults); o['Faults fixed'] = S.fixed || 0;
+  o['Badges (of ' + BADGES.length + ')'] = count(S.badges);
+  o['Needs work (tried, under 2★)'] = weak.join('; ');
+  return o;
+}
+function mergeState(a, b) { // union of two progress records (this device + saved online)
+  var m = fresh(), k;
+  function mx(x, y) { return Math.max(x || 0, y || 0); }
+  function uni(x, y) { var o = {}; for (k in (x || {})) o[k] = x[k]; for (k in (y || {})) if (!(k in o)) o[k] = y[k]; return o; }
+  m.xp = mx(a.xp, b.xp); m.fixed = mx(a.fixed, b.fixed); m.bestCombo = mx(a.bestCombo, b.bestCombo); m.perfect = mx(a.perfect, b.perfect);
+  ['words','pats','tree','badges'].forEach(function (f) { m[f] = uni(a[f], b[f]); });
+  m.pages = {}; ['u6','u7'].forEach(function (u) { m.pages[u] = uni((a.pages || {})[u], (b.pages || {})[u]); });
+  m.faults = uni(a.faults, b.faults);
+  m.mins = {}; [a.mins, b.mins].forEach(function (x) { for (k in (x || {})) m.mins[k] = mx(m.mins[k], x[k]); });
+  [['mods'],['cks']].forEach(function (f) { f = f[0]; m[f] = {}; [a[f], b[f]].forEach(function (x) { for (k in (x || {})) { var r = m[f][k] || { n:0, best:0, stars:0 }, y = x[k];
+    m[f][k] = { n: mx(r.n, y.n), best: mx(r.best, y.best), stars: mx(r.stars, y.stars) }; if (r.nohint || y.nohint) m[f][k].nohint = 1; } }); });
+  var sa = a.streak || {}, sb = b.streak || {}; m.streak = (sa.last || '') >= (sb.last || '') ? { last: sa.last || '', n: sa.n || 0, best: mx(sa.best, sb.best) } : { last: sb.last, n: sb.n || 0, best: mx(sa.best, sb.best) };
+  var ta = a.tests || {}, tb = b.tests || {}; m.tests = {};
+  ['triage','mock1','mock2'].forEach(function (t) { var x = ta[t], y = tb[t]; if (!x && !y) return; if (!x || !y) { m.tests[t] = JSON.parse(JSON.stringify(x || y)); return; }
+    if (t === 'triage') { m.tests[t] = JSON.parse(JSON.stringify((x.date || '') >= (y.date || '') ? x : y)); return; }
+    var lx = (x.last || {}).date || '', ly = (y.last || {}).date || '', o = JSON.parse(JSON.stringify(lx >= ly ? x : y));
+    o.best = Math.max(x.best || 0, y.best || 0); o.hist = (x.hist || []).length >= (y.hist || []).length ? x.hist : y.hist; if (x.prog) o.prog = x.prog; m.tests[t] = o; });
+  var tA = ta.triage, tB = tb.triage; m.route = (tA && (!tB || (tA.date || '') >= (tB.date || ''))) ? (a.route || []) : (tB ? (b.route || []) : (a.route || []));
+  m.owner = a.owner || b.owner || '';
+  return m;
+}
+function adoptState(n) { var f = fresh(); for (var k in f) if (!(k in n)) n[k] = f[k]; S = n; save(true); route(); }
+window.TrailMix = { state: function () { return S; }, summary: summary };
+
+/* active minutes: a minute counts when the page is visible and the student touched it in the last 2 minutes */
+var LAST_ACT = Date.now();
+['click','keydown','touchstart','scroll'].forEach(function (ev) { document.addEventListener(ev, function () { LAST_ACT = Date.now(); }, { passive: true }); });
+setInterval(function () { if (document.visibilityState === 'visible' && Date.now() - LAST_ACT < 120000) { var t = today(); S.mins = S.mins || {}; S.mins[t] = (S.mins[t] || 0) + 1; save(true); if (window.TMSync && S.mins[t] % 5 === 0) TMSync.dirty(); } }, 60000);
 
 /* ---------------- router ---------------- */
 var RUN = null, EXAM = null;
@@ -191,6 +261,7 @@ function viewHome() {
     '<div class="rankcard"><div class="muted small">Your rank</div><div class="rk">' + esc(rk.r.name) + '</div><div class="muted small">' + esc(rk.r.note) + '</div>' +
     '<div class="bar"><i style="width:' + pct + '%"></i></div><div class="small">' + (nx ? (nx.xp - S.xp) + ' XP to <b>' + esc(nx.name) + '</b>' : 'Top rank reached') + '</div>' +
     '<div class="small muted">🔥 ' + (S.streak.last === today() ? S.streak.n : 0) + ' day streak · best ' + (S.streak.best || 0) + ' · 🏅 ' + count(S.badges) + '/' + BADGES.length + ' badges</div></div></section>';
+  if (window.TMSync && TMSync.enabled && !TMSync.account()) html += '<a class="next tcall" href="#/record" style="background:var(--u7-soft)"><div><h3>☁️ Save your progress online</h3><div class="muted">Sign in with your name and a 4-number PIN so T.Chris can follow your progress and you can study on any device.</div></div><span class="btn sm">Sign in</span></a>';
   html += '<div class="next"><div><h3>' + esc(ns.t) + '</h3><div class="muted">' + esc(ns.d) + '</div></div><a class="btn mango" href="' + ns.href + '">' + esc(ns.b) + '</a></div>';
   html += '<div class="unitcards">' + ['u6','u7'].map(function (u) { var U = UNITS[u], gp = modProgress(u, 'g'), vp = modProgress(u, 'v'),
       wl = (U.words.words || []), wg = wl.filter(function (w) { return S.words[w.id]; }).length;
@@ -401,6 +472,7 @@ function treeFollow() { var R = TSORT; R.picked = null; R.step++; treeMaybeFinis
 function treeMaybeFinish() {
   var R = TSORT; if (R.step < R.path.length) return; R.done = true; R.xp = 0;
   var k = R.u + ':' + R.w; touchStreak();
+  emit({ type:'sort', unit:'Unit ' + UNITS[R.u].n, what: WMAP[R.w].word, result: TR[R.u].leaves[treeLeafOf(R.u, R.w)].title, score: R.miss ? R.miss + ' wrong turn' + (R.miss > 1 ? 's' : '') : 'first try' });
   if (R.miss === 0 && !S.tree[k]) { S.tree[k] = today(); R.xp = 3; addXP(3); checkBadges(); } else save();
 }
 
@@ -541,6 +613,9 @@ function finishRun() {
     if (st === 3) S.perfect++;
   }
   if (R.kind === 'triage') return finishTriage();
+  if (R.kind === 'mod' || R.kind === 'ck') { var eo = MODS[R.id] || CKS[R.id], firstOk = R.res.filter(function (r) { return r.ok; }).length;
+    emit({ type: R.kind === 'mod' ? 'module' : 'checkpoint', unit: 'Unit ' + UNITS[eo.unit].n, what: (eo.kind === 'g' ? 'Grammar · ' : 'Vocab · ') + stripTags(R.kind === 'mod' ? eo.name : eo.stage.name), score: Math.round(sc * 100), result: st + '★', detail: firstOk + '/' + n + ' right first time' + (R.hints ? ', ' + R.hints + ' hint' + (R.hints > 1 ? 's' : '') : '') }); }
+  if (R.kind === 'faults') emit({ type: 'faults', what: 'Fault review', score: Math.round(sc * 100), detail: R.res.filter(function (r) { return r.ok; }).length + '/' + n + ' cleared' });
   save(); checkBadges(); if (st === 3) confetti();
   var wrong = R.res.filter(function (r) { return !r.ok; });
   var obj = MODS[R.id] || CKS[R.id], nextLink = '';
@@ -598,7 +673,8 @@ function viewTriage(which) {
 function finishTriage() {
   var R = RUN, tr = S.tests.triage = S.tests.triage || { res:{} }; tr.res = tr.res || {};
   R.res.forEach(function (r) { tr.res[r.id] = r.ok ? 1 : 0; }); tr.date = today();
-  rebuildRoute(); addXP(20); save(); checkBadges(); location.hash = '#/triage/result';
+  rebuildRoute(); emit({ type:'trailhead', what: R.title.replace(/^🧭 /, ''), score: R.res.filter(function (r) { return r.ok; }).length + ' of ' + R.res.length, detail: 'Route: ' + (S.route || []).map(function (id) { return stripTags(MODS[id].name); }).join(', ') });
+  addXP(20); save(); checkBadges(); location.hash = '#/triage/result';
 }
 function rebuildRoute() {
   var tri = TMAP.triage, res = S.tests.triage.res, route = [];
@@ -664,6 +740,7 @@ function submitExam(timedOut) {
   var secs = Math.round((Date.now() - p.start) / 1000);
   E.r.last = { date: today(), score: score, n: E.items.length, parts: parts, ans: p.ans, secs: Math.min(secs, E.t.minutes * 60), timedOut: !!timedOut, wrongMods: wrongMods };
   E.r.hist = (E.r.hist || []).concat([{ date: today(), score: score }]); E.r.best = Math.max(E.r.best || 0, score); delete E.r.prog;
+  emit({ type:'mock', what: E.t.name, score: score + ' of ' + E.items.length, result: Math.floor(E.r.last.secs / 60) + ' min' + (timedOut ? ' (time ran out)' : ''), detail: Object.keys(parts).map(function (k) { return k.split(':')[0] + ' ' + parts[k][0] + '/' + parts[k][1]; }).join(' · ') });
   addXP(score * 5); save(); checkBadges(); if (score >= 30) confetti();
   location.hash = '#/mock/' + E.t.id + '/result';
 }
@@ -684,6 +761,35 @@ function showMockResult(t) {
   app.innerHTML = h;
 }
 
+/* ---------------- account (online saving) ---------------- */
+var LOGIN_NAME = '';
+function accountBox() {
+  var a = TMSync.account(), st = TMSync.status();
+  if (!a) return '<article class="card acct"><h2>☁️ Save your progress online</h2><p class="muted">Sign in with your name and a 4-number PIN. Your progress is saved for T.Chris to see, and you can carry on from any phone or computer. First time? Just choose a PIN — that creates your account.</p>' +
+    '<form class="acctform" data-form="login"><label>Your name<input name="name" autocomplete="nickname" maxlength="30" required placeholder="e.g. Soda" value="' + esc(LOGIN_NAME) + '"></label>' +
+    '<label>PIN (4 numbers)<input name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required autocomplete="off" placeholder="••••"></label>' +
+    '<button class="btn mango" type="submit">Sign in</button></form>' + (st.err ? '<div class="fb bad" role="alert">' + esc(st.err) + '</div>' : '') +
+    (count(S.mods) || S.xp ? '<p class="small muted">The progress already in this browser (' + S.xp + ' XP) will be added to your account.</p>' : '') + '</article>';
+  var when = st.at ? st.at.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : '';
+  var line = { saving:'Saving…', saved:'Saved online at ' + when + '.', offline:'Offline right now. Your progress is safe in this browser and will be saved when the internet is back.', error:'Not saved: ' + esc(st.err), idle:'Signed in.' }[st.s] || '';
+  return '<article class="card acct in"><div class="row" style="justify-content:space-between"><div><div class="small muted">Signed in as</div><h2 style="margin:0">👤 ' + esc(a.name) + '</h2></div>' +
+    '<div class="row"><button class="btn ghost sm" data-act="syncnow">☁️ Save now</button><button class="btn ghost sm" data-act="logout">Sign out</button></div></div><p class="small muted" style="margin:8px 0 0">' + line + '</p></article>';
+}
+function doLogin(form) {
+  var name = form.name.value.trim(), pin = form.pin.value.trim(), btn = form.querySelector('button');
+  LOGIN_NAME = name;
+  if (!/^\d{4}$/.test(pin)) { toast('Your PIN must be 4 numbers.'); return; }
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  TMSync.login(name, pin).then(function (r) {
+    if (!r.ok) { btn.disabled = false; btn.textContent = 'Sign in'; var b = document.getElementById('acctbox'); if (b) b.innerHTML = accountBox(); toast(esc(r.error)); return; }
+    var mine = !S.owner || S.owner.toLowerCase() === r.name.toLowerCase();
+    var next = r.state ? (mine ? mergeState(S, r.state) : r.state) : (mine ? S : fresh());
+    next.owner = r.name; adoptState(next); TMSync.push();
+    toast(r.created ? 'Welcome, ' + esc(r.name) + '! Your progress is now saved online.' : 'Welcome back, ' + esc(r.name) + '!');
+  });
+}
+document.addEventListener('submit', function (e) { var f = e.target.closest('[data-form="login"]'); if (f) { e.preventDefault(); doLogin(f); } });
+
 /* ---------------- record ---------------- */
 function viewRecord() {
   var nf = count(S.faults), h = '<h1>My Trail</h1><div class="grid2">' +
@@ -696,6 +802,7 @@ function viewRecord() {
     '</tbody></table></article></div>';
   h += '<div class="section"><h2>Badges</h2><span class="muted small">' + count(S.badges) + '/' + BADGES.length + '</span></div><div class="badges">' + BADGES.map(badgeHtml).join('') + '</div>';
   h += '<div class="section"><h2>Ranks</h2></div><div class="card"><table class="parts"><tbody>' + RANKS.map(function (r) { return '<tr' + (rankOf(S.xp).r === r ? ' style="background:var(--mango-soft)"' : '') + '><td><b>' + esc(r.name) + '</b></td><td class="small muted">' + esc(r.note) + '</td><td style="text-align:right">' + r.xp + ' XP</td></tr>'; }).join('') + '</tbody></table></div>';
+  if (window.TMSync && TMSync.enabled) h = '<div id="acctbox">' + accountBox() + '</div>' + h;
   h += '<div class="section"><h2>Share with your teacher</h2></div><div class="card"><p class="small muted">Copy a short report of your progress and send it to T.Chris (Line or chat).</p><button class="btn" data-act="report">Copy my report</button> <button class="btn ghost" data-act="reset">Reset all progress</button></div>';
   app.innerHTML = h;
 }
@@ -741,7 +848,10 @@ document.addEventListener('click', function (e) {
   if (act === 'msubmit') { if (a.getAttribute('data-sure')) return submitExam(false);
     var left = EXAM.items.filter(function (x) { return EXAM.r.prog.ans[x.id] == null; }).length; a.setAttribute('data-sure', '1'); a.textContent = left ? 'Submit with ' + left + ' blank?' : 'Yes, submit'; return; }
   if (act === 'report') { var txt = reportText(); (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(function () { toast('Report copied. Paste it into Line for T.Chris.'); }, function () { app.insertAdjacentHTML('beforeend', '<pre class="card" style="white-space:pre-wrap">' + esc(txt) + '</pre>'); }); return; }
-  if (act === 'reset') { if (a.getAttribute('data-sure')) { S = fresh(); save(); toast('Progress cleared.'); location.hash = '#/home'; route(); return; } a.setAttribute('data-sure', '1'); a.textContent = 'Press again to erase everything'; return; }
+  if (act === 'syncnow') { TMSync.push(); return; }
+  if (act === 'logout') { if (!a.getAttribute('data-sure')) { a.setAttribute('data-sure', '1'); a.textContent = 'Sign out and clear this device?'; return; }
+    TMSync.logout().then(function () { S = fresh(); save(true); toast('Signed out. Your progress is saved online.'); location.hash = '#/home'; route(); }); return; }
+  if (act === 'reset') { if (a.getAttribute('data-sure')) { var ow = S.owner; S = fresh(); S.owner = ow; save(); toast('Progress cleared.'); location.hash = '#/home'; route(); return; } a.setAttribute('data-sure', '1'); a.textContent = 'Press again to erase everything'; return; }
 });
 document.addEventListener('change', function (e) {
   if (e.target.matches && e.target.matches('.tsel') && e.target.value && TSORT) { treeStart(TSORT.u, e.target.value); treePaint(); }
@@ -754,4 +864,5 @@ document.addEventListener('keydown', function (e) {
 });
 
 touchStreak(); route(); checkBadges();
+if (window.TMSync && TMSync.account()) TMSync.dirty(2000);
 })();

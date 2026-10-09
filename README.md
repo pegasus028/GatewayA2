@@ -83,3 +83,19 @@ Open `media.js`; instructions are at the top. Add `unit: 6` to show an item on t
 - Facts in stories and questions were checked against a fact-check list; book claims known to be wrong (e.g. pepper colours, tiger climbing, "eco-bridges are new") are not used as facts.
 - TU-style mocks: Triam Udom publishes no blueprint or past papers. The format (40 four-option items, 60 minutes, error identification / sentence completion / vocabulary / conversation / passage cloze / reading) follows tutor consensus and is labelled "format unofficial". Target cycle for M2 students: TU91, expected about March 2028.
 - Word photos come from Wikimedia Commons; each word card credits the author and links to the file page with its licence.
+
+---
+
+## Online saving and the teacher's Google Sheet
+
+Without a server address the app saves progress in the student's browser only (as before). With one, students sign in on **My Trail** (or the ☁️ chip in the header) with a **name + 4-number PIN**; the first PIN they type creates the account. Their full progress is saved a few seconds after every change and when the tab is closed, so they can carry on from any device. Signing out clears the device (safe for shared phones). Work done before signing in is merged into the account.
+
+**Files:** `backend/Code.gs` (the Apps Script server), `sync.js` (client: sign-in, saving, offline outbox), `window.TRAILMIX_API_URL` in `index.html`.
+
+**The Sheet (your dashboard):**
+- **Students**: one row per student, refreshed on every save: last active (green = today, red = 3+ days ago), XP, rank, streak, minutes in the last 7 days and in total, days studied, word cards, story pages, pattern cards, tree words sorted, stars per unit trail, modules tried, checkpoints, Trailhead score, route modules still to do, mock best scores and attempts, faults waiting/fixed, badges, and **Needs work** (modules tried but under 2★, weakest first).
+- **Activity**: a log line for every sign-in, finished module, checkpoint, fault review, Trailhead Check (with the route it built), mock paper (score, time, part scores), Sorting-tree word, badge and new rank.
+- **_accounts** (hidden): PIN hashes, sign-in tokens and the saved progress. PINs are never stored in plain text.
+- Menu **Trail Mix → Reset a student's PIN** for a forgotten PIN (progress is kept).
+
+**Set up once:** new Google Sheet → Extensions → Apps Script → paste `backend/Code.gs` → Save → run `setup` → Deploy → New deployment → Web app, *Execute as: Me*, *Who has access: Anyone* → copy the `/exec` URL into `window.TRAILMIX_API_URL` in `index.html`. After editing Code.gs: Deploy → Manage deployments → ✏️ → New version → Deploy.
