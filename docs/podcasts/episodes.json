@@ -1,0 +1,352 @@
+[
+ {
+  "id": "g6s1",
+  "code": "G6-1",
+  "unit": 6,
+  "kind": "grammar",
+  "title": "Stage 1 · Count it!",
+  "module": "g6m1",
+  "file": "g6s1.md",
+  "words": 1214
+ },
+ {
+  "id": "g6s2",
+  "code": "G6-2",
+  "unit": 6,
+  "kind": "grammar",
+  "title": "Stage 2 · a, an, some, any",
+  "module": "g6m4",
+  "file": "g6s2.md",
+  "words": 1474
+ },
+ {
+  "id": "g6s3",
+  "code": "G6-3",
+  "unit": 6,
+  "kind": "grammar",
+  "title": "Stage 3 · How much? How many?",
+  "module": "g6m8",
+  "file": "g6s3.md",
+  "words": 884
+ },
+ {
+  "id": "g6s4",
+  "code": "G6-4",
+  "unit": 6,
+  "kind": "grammar",
+  "title": "Stage 4 · Good advice",
+  "module": "g6m10",
+  "file": "g6s4.md",
+  "words": 843
+ },
+ {
+  "id": "g6s5",
+  "code": "G6-5",
+  "unit": 6,
+  "kind": "grammar",
+  "title": "Stage 5 · At the café",
+  "module": "g6m12",
+  "file": "g6s5.md",
+  "words": 952
+ },
+ {
+  "id": "p6-pour",
+  "code": "P6-01",
+  "unit": 6,
+  "kind": "pattern",
+  "title": "Pattern · Pour it, spread it, scoop it? Then you can't count it.",
+  "pattern": "pour",
+  "file": "p6-pour.md",
+  "words": 376
+ },
+ {
+  "id": "p6-grains",
+  "code": "P6-02",
+  "unit": 6,
+  "kind": "pattern",
+  "title": "Pattern · Tiny pieces: English counts beans, but not rice",
+  "pattern": "grains",
+  "file": "p6-grains.md",
+  "words": 367
+ },
+ {
+  "id": "p6-animal",
+  "code": "P6-03",
+  "unit": 6,
+  "kind": "pattern",
+  "title": "Pattern · A chicken runs; some chicken is on your plate",
+  "pattern": "animal",
+  "file": "p6-animal.md",
+  "words": 379
+ },
+ {
+  "id": "p6-containers",
+  "code": "P6-04",
+  "unit": 6,
+  "kind": "pattern",
+  "title": "Pattern · The food chooses its container",
+  "pattern": "containers",
+  "file": "p6-containers.md",
+  "words": 380
+ },
+ {
+  "id": "p6-cupglass",
+  "code": "P6-05",
+  "unit": 6,
+  "kind": "pattern",
+  "title": "Pattern · Hot in a cup, cold in a glass",
+  "pattern": "cupglass",
+  "file": "p6-cupglass.md",
+  "words": 350
+ },
+ {
+  "id": "p6-builders",
+  "code": "P6-06",
+  "unit": 6,
+  "kind": "pattern",
+  "title": "Pattern · Little words inside big words",
+  "pattern": "builders",
+  "file": "p6-builders.md",
+  "words": 340
+ },
+ {
+  "id": "p6-ukus",
+  "code": "P6-07",
+  "unit": 6,
+  "kind": "pattern",
+  "title": "Pattern · Same snack, different country",
+  "pattern": "ukus",
+  "file": "p6-ukus.md",
+  "words": 353
+ },
+ {
+  "id": "p6-sounds",
+  "code": "P6-08",
+  "unit": 6,
+  "kind": "pattern",
+  "title": "Pattern · Don't trust the spelling",
+  "pattern": "sounds",
+  "file": "p6-sounds.md",
+  "words": 319
+ },
+ {
+  "id": "p6-plurals",
+  "code": "P6-09",
+  "unit": 6,
+  "kind": "pattern",
+  "title": "Pattern · One -s, three sounds",
+  "pattern": "plurals",
+  "file": "p6-plurals.md",
+  "words": 336
+ },
+ {
+  "id": "p6-science",
+  "code": "P6-10",
+  "unit": 6,
+  "kind": "pattern",
+  "title": "Pattern · Fruit in the kitchen, fruit in science",
+  "pattern": "science",
+  "file": "p6-science.md",
+  "words": 351
+ },
+ {
+  "id": "p6-cousins",
+  "code": "P6-11",
+  "unit": 6,
+  "kind": "pattern",
+  "title": "Pattern · Food families: cousins on your plate",
+  "pattern": "cousins",
+  "file": "p6-cousins.md",
+  "words": 349
+ },
+ {
+  "id": "p6-plate",
+  "code": "P6-12",
+  "unit": 6,
+  "kind": "pattern",
+  "title": "Pattern · Every day, some days, only sometimes",
+  "pattern": "plate",
+  "file": "p6-plate.md",
+  "words": 360
+ },
+ {
+  "id": "g7s1",
+  "code": "G7-1",
+  "unit": 7,
+  "kind": "grammar",
+  "title": "Stage 1 · Going to",
+  "module": "g7m1",
+  "file": "g7s1.md",
+  "words": 936
+ },
+ {
+  "id": "g7s2",
+  "code": "G7-2",
+  "unit": 7,
+  "kind": "grammar",
+  "title": "Stage 2 · Will / won't",
+  "module": "g7m3",
+  "file": "g7s2.md",
+  "words": 877
+ },
+ {
+  "id": "g7s3",
+  "code": "G7-3",
+  "unit": 7,
+  "kind": "grammar",
+  "title": "Stage 3 · Diary dates",
+  "module": "g7m5",
+  "file": "g7s3.md",
+  "words": 793
+ },
+ {
+  "id": "g7s4",
+  "code": "G7-4",
+  "unit": 7,
+  "kind": "grammar",
+  "title": "Stage 4 · Choosing the future",
+  "module": "g7m7",
+  "file": "g7s4.md",
+  "words": 950
+ },
+ {
+  "id": "g7s5",
+  "code": "G7-5",
+  "unit": 7,
+  "kind": "grammar",
+  "title": "Stage 5 · Word order",
+  "module": "g7m9",
+  "file": "g7s5.md",
+  "words": 745
+ },
+ {
+  "id": "g7s6",
+  "code": "G7-6",
+  "unit": 7,
+  "kind": "grammar",
+  "title": "Stage 6 · Making plans",
+  "module": "g7m11",
+  "file": "g7s6.md",
+  "words": 814
+ },
+ {
+  "id": "p7-addy",
+  "code": "P7-01",
+  "unit": 7,
+  "kind": "pattern",
+  "title": "Pattern · Thing + -y = what the day is like",
+  "pattern": "addy",
+  "file": "p7-addy.md",
+  "words": 376
+ },
+ {
+  "id": "p7-threeways",
+  "code": "P7-02",
+  "unit": 7,
+  "kind": "pattern",
+  "title": "Pattern · It's raining · It's rainy · There's a lot of rain",
+  "pattern": "threeways",
+  "file": "p7-threeways.md",
+  "words": 373
+ },
+ {
+  "id": "p7-countweather",
+  "code": "P7-03",
+  "unit": 7,
+  "kind": "pattern",
+  "title": "Pattern · A storm, two storms — but some rain, never two rains",
+  "pattern": "countweather",
+  "file": "p7-countweather.md",
+  "words": 359
+ },
+ {
+  "id": "p7-thermo",
+  "code": "P7-04",
+  "unit": 7,
+  "kind": "pattern",
+  "title": "Pattern · cold → warm → hot, and wet ↔ dry",
+  "pattern": "thermo",
+  "file": "p7-thermo.md",
+  "words": 347
+ },
+ {
+  "id": "p7-partners",
+  "code": "P7-05",
+  "unit": 7,
+  "kind": "pattern",
+  "title": "Pattern · heavy rain, strong wind, thick fog",
+  "pattern": "partners",
+  "file": "p7-partners.md",
+  "words": 334
+ },
+ {
+  "id": "p7-updown",
+  "code": "P7-06",
+  "unit": 7,
+  "kind": "pattern",
+  "title": "Pattern · From rice field to mountain top: the land has levels",
+  "pattern": "updown",
+  "file": "p7-updown.md",
+  "words": 354
+ },
+ {
+  "id": "p7-inside",
+  "code": "P7-07",
+  "unit": 7,
+  "kind": "pattern",
+  "title": "Pattern · An island is land in water; a lake is water in land",
+  "pattern": "inside",
+  "file": "p7-inside.md",
+  "words": 356
+ },
+ {
+  "id": "p7-inon",
+  "code": "P7-08",
+  "unit": 7,
+  "kind": "pattern",
+  "title": "Pattern · in a forest, on a beach: the little word before the place",
+  "pattern": "inon",
+  "file": "p7-inon.md",
+  "words": 374
+ },
+ {
+  "id": "p7-bodyclues",
+  "code": "P7-09",
+  "unit": 7,
+  "kind": "pattern",
+  "title": "Pattern · Look at the body, not the name",
+  "pattern": "bodyclues",
+  "file": "p7-bodyclues.md",
+  "words": 358
+ },
+ {
+  "id": "p7-habitat",
+  "code": "P7-10",
+  "unit": 7,
+  "kind": "pattern",
+  "title": "Pattern · Every animal has an address — and some addresses are disappearing",
+  "pattern": "habitat",
+  "file": "p7-habitat.md",
+  "words": 382
+ },
+ {
+  "id": "p7-builders",
+  "code": "P7-11",
+  "unit": 7,
+  "kind": "pattern",
+  "title": "Pattern · Two words in one — and how animals become plural",
+  "pattern": "builders",
+  "file": "p7-builders.md",
+  "words": 379
+ },
+ {
+  "id": "p7-sounds",
+  "code": "P7-12",
+  "unit": 7,
+  "kind": "pattern",
+  "title": "Pattern · Silent letters and sneaky sounds",
+  "pattern": "sounds",
+  "file": "p7-sounds.md",
+  "words": 353
+ }
+]
