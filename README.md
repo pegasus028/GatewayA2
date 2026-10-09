@@ -16,7 +16,7 @@ No build step, no back end, no API key. Progress is saved in the student's brows
 
 | Tab | What the student does |
 |---|---|
-| 🏕️ **Base Camp** | Rank, XP, streak, the next step to take, their route from the triage test, unit progress, badges, the podcast/video shelf |
+| 🏕️ **Base Camp** | Rank, XP, streak, the next step to take, their route from the triage test, unit progress, badges, lesson podcasts heard and the next ones to hear |
 | 🍲 **Unit 6** / 🌿 **Unit 7** → **Vocabulary** | **Storybook** (landing page): a page-turn story that uses every keyword; each gold word opens a word card with a real photo. **Word trail**: the words in stages and modules with picture, sorting and gap questions. **Patterns**: the systems underneath the word list. **🌳 Sorting tree**: an interactive decision tree built from the pattern cards — the student answers 2–4 questions about a word (countable/uncountable/both, container, animal class, in/on, weather noun/verb/adjective), sees its route light up on the whole tree, and gets the grammar consequences (+3 XP and the Word Sorter badge at 30). **Word bank**: every word, filterable |
 | 🍲 **Unit 6** / 🌿 **Unit 7** → **Grammar** | A trail of stages. Each module = a rule card (explanation, table, ✓/✗ examples, "Extra" box, memory tip) + 5–7 multiple-choice questions of different types. Each stage ends in a checkpoint |
 | 🎯 **Tests** | **Trailhead Check** (triage: one question per module, 44 in total, or one unit at a time) → builds the student's route. **TU-style Mock 1 · Base Camp** and **Mock 2 · Summit**: 40 questions, 60 minutes, 6 parts, review and "study these next" links |
@@ -76,6 +76,8 @@ SPEC.md             the content rules every question follows
 ## Adding podcasts and videos
 
 Open `media.js`; instructions are at the top. Add `unit: 6` to show an item on the unit pages and Base Camp, and `module: "g6m5"` to pin it to a module's rule card.
+
+**Lesson podcasts.** 35 short NotebookLM episodes (one per grammar stage, one per vocabulary pattern card) live in `audio/` and are listed in `media.js` with `stage:` or `pattern:`. How they were made, checked and how to replace one: `docs/podcasts/README.md`.
 
 ## Credits and notes
 
