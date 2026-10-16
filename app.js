@@ -143,8 +143,25 @@ function pickVoice() {
     || gb[0] || null;
 }
 try { if (window.speechSynthesis) { speechSynthesis.getVoices(); speechSynthesis.addEventListener('voiceschanged', pickVoice); } } catch (e) {}
-function speak(text) { try { var u = new SpeechSynthesisUtterance(text); u.lang = 'en-GB'; u.rate = .9;
+/* Recorded read-aloud: every word, example and story page has a Sonia MP3 in audio/tts/ (made by tools/make-audio.py,
+   listed in data/tts.js). speak() plays the recording; if there is none, or it fails to play, it uses the browser voice.
+   ttsNorm/ttsKey must stay identical to the copies in tools/tts-list.js. */
+function ttsNorm(s) { return String(s || '').replace(/\s+/g, ' ').trim(); }
+function ttsKey(s) { s = ttsNorm(s); var h = 0x811c9dc5;
+  for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return ('0000000' + h.toString(16)).slice(-8); }
+var TTS_SET = {}; ((window.TTS && window.TTS.keys) || []).forEach(function (k) { TTS_SET[k] = 1; });
+var ttsAudio = null;
+function stopSpeech() { try { if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; } if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) {} }
+function speakSynth(text) { try { var u = new SpeechSynthesisUtterance(text); u.lang = 'en-GB'; u.rate = .9;
   var v = pickVoice(); if (v) { u.voice = v; u.lang = v.lang; } speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) { toast('Sound is not available in this browser.'); } }
+function speak(text) { stopSpeech(); var k = ttsKey(text);
+  if (!TTS_SET[k]) return speakSynth(text);
+  var a = new Audio(((window.TTS && window.TTS.dir) || 'audio/tts/') + k + '.mp3'), fell = false; ttsAudio = a;
+  function fallback() { if (fell || ttsAudio !== a) return; fell = true; ttsAudio = null; speakSynth(text); }
+  a.addEventListener('error', fallback);
+  try { var p = a.play(); if (p && p.catch) p.catch(function (e) { if (!e || e.name !== 'AbortError') fallback(); }); } catch (e) { fallback(); } }
+window.addEventListener('hashchange', stopSpeech);
 function stripTags(s) { return String(s || '').replace(/<[^>]+>/g, ''); }
 function modUrl(m) { return '#/m/' + m.id; }
 
@@ -395,7 +412,7 @@ function storyView(u, body) {
   }
   storyView.paint = storyView.paint || {}; storyView.paint[u] = paint; paint();
 }
-function turnPage(u, d) { var st = UNITS[u].story, b = BOOK[u];
+function turnPage(u, d) { var st = UNITS[u].story, b = BOOK[u]; stopSpeech();
   if (d > 0) { if (b.p < st.chapters[b.c].pages.length - 1) b.p++; else if (b.c < st.chapters.length - 1) { b.c++; b.p = 0; } }
   else { if (b.p > 0) b.p--; else if (b.c > 0) { b.c--; b.p = st.chapters[b.c].pages.length - 1; } }
   storyView.paint[u](); var a = document.querySelector('.page'); if (a) a.scrollIntoView({ block:'start' }); }

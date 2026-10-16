@@ -58,10 +58,13 @@ data/
   u6-grammar.js u7-grammar.js    grammar trails
   tests.js                       triage + two TU-style mocks
   images.js                      photo file + credit for every word
+  tts.js                         list of recorded read-aloud clips (generated — don't edit)
+audio/tts/          386 Sonia read-aloud MP3s (words, examples, story pages)
 art/words/          one photo per keyword (Wikimedia Commons)
 art/story/          drop NotebookLM illustrations here (see docs/)
 docs/               NotebookLM illustration protocol + art brief
 tools/validate.js   checks every data file (run before pushing content edits)
+tools/make-audio.py records read-aloud MP3s for new or changed text (see below)
 SPEC.md             the content rules every question follows
 ```
 
@@ -72,6 +75,25 @@ SPEC.md             the content rules every question follows
 - `answer` is the index (0–3) of the correct option. For "find the mistake" items, the sentence marks four parts as `[[...]]` and `options` lists them in order.
 - Tests route students with the `module` field — keep it pointing at a real module id.
 - Story pages: `{{id|surface word}}` makes a tappable keyword. Give a page an illustration with `img: "art/story/u6-c1p1.jpg"`; leave it empty for the photo mosaic.
+- **After changing a word, an example sentence or a story page, re-record its audio** (below), or that item falls back to the browser voice.
+
+## Read-aloud recordings (Sonia, British English)
+
+Every 🔊 in the app — 121 words, 242 example sentences and the 23 storybook pages — plays a recorded MP3 in the
+Microsoft Sonia voice (`en-GB-SoniaNeural`, 90% speed), so it sounds the same on every device, including iPad Safari.
+Files are `audio/tts/<key>.mp3`, where the key is a short hash of the exact text; `data/tts.js` lists them.
+If a recording is missing or won't play, the app uses the browser's own British voice (Sonia in Edge).
+
+To record new or edited text (needs Python, Node and internet):
+
+```
+pip install edge-tts
+python tools/make-audio.py --prune     # records only what changed; --prune deletes clips for text that's gone
+```
+
+Then commit `audio/tts/` and `data/tts.js`, and bump the `?v=` on `data/tts.js` in `index.html`.
+The recordings come from Microsoft's free Edge read-aloud service through the unofficial `edge-tts` tool; if it ever
+stops working, existing clips keep playing and only new recording is affected.
 
 ## Adding podcasts and videos
 
