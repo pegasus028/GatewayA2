@@ -131,8 +131,20 @@ function confetti() {
   var f = 0; (function tick() { x.clearRect(0, 0, c.width, c.height); ps.forEach(function (p) { p.vy += .35; p.x += p.vx; p.y += p.vy; p.r += .2; x.save(); x.translate(p.x, p.y); x.rotate(p.r); x.fillStyle = p.c; x.fillRect(-p.s / 2, -p.s / 2, p.s, p.s * .6); x.restore(); });
     if (++f < 110) requestAnimationFrame(tick); else c.remove(); })();
 }
+/* Read-aloud voice: Sonia, British English (Microsoft Edge "Microsoft Sonia Online (Natural) - English (United Kingdom)").
+   Browsers without Sonia fall back to another British English voice, preferring a female one. */
+var TTS_VOICE = /sonia/i;
+function pickVoice() {
+  var vs = (window.speechSynthesis && speechSynthesis.getVoices()) || [];
+  var gb = vs.filter(function (v) { return /en[-_]GB/i.test(v.lang); });
+  return vs.filter(function (v) { return TTS_VOICE.test(v.name) && /en[-_]GB/i.test(v.lang); })[0]
+    || vs.filter(function (v) { return TTS_VOICE.test(v.name); })[0]
+    || gb.filter(function (v) { return /libby|maisie|hollie|serena|kate|female|google uk english female/i.test(v.name); })[0]
+    || gb[0] || null;
+}
+try { if (window.speechSynthesis) { speechSynthesis.getVoices(); speechSynthesis.addEventListener('voiceschanged', pickVoice); } } catch (e) {}
 function speak(text) { try { var u = new SpeechSynthesisUtterance(text); u.lang = 'en-GB'; u.rate = .9;
-  var v = speechSynthesis.getVoices().filter(function (v) { return /en-GB/i.test(v.lang); })[0]; if (v) u.voice = v; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) { toast('Sound is not available in this browser.'); } }
+  var v = pickVoice(); if (v) { u.voice = v; u.lang = v.lang; } speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) { toast('Sound is not available in this browser.'); } }
 function stripTags(s) { return String(s || '').replace(/<[^>]+>/g, ''); }
 function modUrl(m) { return '#/m/' + m.id; }
 
